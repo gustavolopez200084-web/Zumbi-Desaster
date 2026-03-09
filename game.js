@@ -60,7 +60,7 @@ function preload() { }
 function create() {
     generateTextures(this);
 
-    // Ground: Grass with tile dots
+    // Ground: Fixed tiled background from pre-generated texture
     this.add.tileSprite(400, 300, 800, 600, 'grass_tex');
 
     // Base (Central rectangle)
@@ -170,7 +170,7 @@ function update(time, delta) {
 // --- Creation Helpers ---
 
 function generateTextures(scene) {
-    // 1. Grass: More detailed with 100 random dots for noise
+    // 1. Grass Texture (Rendered once into a tile)
     const grass = scene.make.graphics({ x: 0, y: 0, add: false });
     grass.fillStyle(0x90ee90).fillRect(0, 0, 64, 64);
     for (let i = 0; i < 100; i++) {
@@ -181,50 +181,41 @@ function generateTextures(scene) {
     }
     grass.generateTexture('grass_tex', 64, 64);
 
-    // 2. Organic Trees
+    // 2. Organic Trees (Pre-rendered)
     const tree = scene.make.graphics({ x: 0, y: 0, add: false });
-    // Shadow
-    tree.fillStyle(0x000000, 0.2).fillEllipse(16, 28, 20, 10);
-    // Trunk
-    tree.lineStyle(2, 0x000000).fillStyle(0x5d4037).fillRect(14, 20, 6, 12).strokeRect(14, 20, 6, 12);
-    // Leaves (Nuance of circles)
-    tree.fillStyle(0x006400);
+    tree.fillStyle(0x000000, 0.2).fillEllipse(16, 28, 20, 10); // Shadow
+    tree.lineStyle(2, 0x000000).fillStyle(0x5d4037).fillRect(14, 20, 6, 12).strokeRect(14, 20, 6, 12); // Trunk
+    tree.fillStyle(0x006400); // Leaves
     tree.fillCircle(16, 10, 12).fillCircle(10, 14, 8).fillCircle(22, 14, 8);
     tree.strokeCircle(16, 10, 12).strokeCircle(10, 14, 8).strokeCircle(22, 14, 8);
     tree.generateTexture('tree_tex', 32, 40);
 
-    // 3. Irregular Rocks with Internal Highlight
+    // 3. Irregular Rocks with Highlights (Pre-rendered)
     const rock = scene.make.graphics({ x: 0, y: 0, add: false });
     rock.fillStyle(0x000000, 0.2).fillEllipse(16, 24, 24, 12); // Shadow
-    rock.lineStyle(2, 0x000000);
-    rock.fillStyle(0x607d8b); // Bluish gray
+    rock.lineStyle(2, 0x000000).fillStyle(0x607d8b); // Base
     const points = [{ x: 4, y: 20 }, { x: 2, y: 10 }, { x: 12, y: 2 }, { x: 24, y: 4 }, { x: 30, y: 12 }, { x: 26, y: 24 }, { x: 10, y: 28 }];
     rock.fillPoints(points, true).strokePoints(points, true);
-    // Bevel/Highlight line
-    rock.lineStyle(2, 0x90a4ae, 0.8).lineBetween(12, 4, 24, 6).lineBetween(12, 4, 6, 12);
+    rock.lineStyle(2, 0x90a4ae, 0.8).lineBetween(12, 4, 24, 6).lineBetween(12, 4, 6, 12); // Highlight
     rock.generateTexture('rock_tex', 32, 32);
 
-    // Bullet
+    // 4. Detailed Zombie Texture
+    const z = scene.make.graphics({ x: 0, y: 0, add: false });
+    z.fillStyle(0x27ae60).fillCircle(16, 16, 14).lineStyle(2, 0x145a32).strokeCircle(16, 16, 14);
+    z.fillStyle(0xffffff).fillCircle(10, 12, 4).fillCircle(22, 12, 4); // Eyes
+    z.fillStyle(0x000000).fillCircle(10, 12, 2).fillCircle(22, 12, 2); // Pupils
+    z.lineStyle(2, 0xff0000).beginPath().arc(16, 20, 6, 0.2, 2.9).strokePath(); // Mouth
+    z.generateTexture('zombie_tex', 32, 32);
+
+    // Bullet & Particles
     const b = scene.make.graphics({ x: 0, y: 0, add: false });
     b.fillStyle(0xffff00).fillCircle(4, 4, 4);
     b.generateTexture('bullet_tex', 8, 8);
 
-    // 4. Detalhado Zombie Texture
-    const z = scene.make.graphics({ x: 0, y: 0, add: false });
-    z.fillStyle(0x27ae60).fillCircle(16, 16, 14).lineStyle(2, 0x145a32).strokeCircle(16, 16, 14);
-    // Eyes: White with black pupils
-    z.fillStyle(0xffffff).fillCircle(10, 12, 4).fillCircle(22, 12, 4);
-    z.fillStyle(0x000000).fillCircle(10, 12, 2).fillCircle(22, 12, 2);
-    // Mouth: Red curve
-    z.lineStyle(2, 0xff0000).beginPath().arc(16, 20, 6, 0.2, 2.9).strokePath();
-    z.generateTexture('zombie_tex', 32, 32);
-
-    // Blood Particle
     const bp = scene.make.graphics({ x: 0, y: 0, add: false });
     bp.fillStyle(0x922b21).fillRect(0, 0, 4, 4);
     bp.generateTexture('blood_drop', 4, 4);
 
-    // Drops
     const woodDrop = scene.make.graphics({ x: 0, y: 0, add: false });
     woodDrop.lineStyle(1, 0x000000).fillStyle(0x8d6e63).fillRect(0, 0, 10, 10).strokeRect(0, 0, 10, 10);
     woodDrop.generateTexture('wood_drop', 10, 10);
@@ -541,7 +532,7 @@ function updateHUD(scene) {
 }
 
 function createShopMenu(scene) {
-    shopContainer = scene.add.container(400, 300).setDepth(300).setVisible(false);
+    shopContainer = scene.add.container(400, 300).setDepth(999).setVisible(false).setScrollFactor(0);
 
     // Glassmorphism background
     const bg = scene.add.graphics();
