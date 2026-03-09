@@ -160,11 +160,16 @@ function update(time, delta) {
 
     zombies.children.iterate((zombie) => {
         if (!zombie || !zombie.active) return;
-        const distToBase = Phaser.Math.Distance.Between(zombie.x, zombie.y, 400, 300);
         const distToPlayer = Phaser.Math.Distance.Between(zombie.x, zombie.y, player.x, player.y);
         const target = distToPlayer < 200 ? player : base;
         this.physics.moveToObject(zombie, target, 70);
-        zombie.setRotation(Phaser.Math.Angle.Between(zombie.x, zombie.y, target.x, target.y));
+
+        // Flip based on velocity instead of rotating
+        if (zombie.body.velocity.x > 0) {
+            zombie.setFlipX(false);
+        } else if (zombie.body.velocity.x < 0) {
+            zombie.setFlipX(true);
+        }
     });
 
     turrets.children.iterate((t) => { if (t) updateTurret(this, t, time); });
@@ -196,12 +201,37 @@ function generateTextures(scene) {
     stoneG.fillPoints(stonePoints, true);
     stoneG.generateTexture('stone', 24, 24);
 
-    // 4. Zombie Texture
+    // 4. Scary Zombie Texture
     const zombieG = scene.make.graphics({ x: 0, y: 0, add: false });
-    zombieG.fillStyle(0x2ecc71).fillCircle(16, 16, 14); // Body
-    zombieG.fillStyle(0xff0000).fillCircle(10, 11, 3).fillCircle(22, 11, 3); // Red Eyes
-    zombieG.fillStyle(0x000000).fillRect(12, 22, 8, 2); // Mouth
-    zombieG.generateTexture('zombie', 32, 32);
+    // Olive green body with jagged stroke
+    zombieG.lineStyle(2, 0x2d3436, 1);
+    zombieG.fillStyle(0x556b2f); // Olive Drab
+    zombieG.fillCircle(16, 16, 14);
+    zombieG.strokeCircle(16, 16, 14);
+
+    // Scary triangle red eyes
+    zombieG.fillStyle(0xff0000);
+    zombieG.fillTriangle(6, 14, 12, 14, 9, 8); // Left eye
+    zombieG.fillTriangle(20, 14, 26, 14, 23, 8); // Right eye
+    zombieG.fillStyle(0x000000);
+    zombieG.fillCircle(9, 11, 1).fillCircle(23, 11, 1); // Pupils
+
+    // Zig-zag mouth
+    zombieG.lineStyle(2, 0x000000);
+    zombieG.beginPath();
+    zombieG.moveTo(8, 22);
+    zombieG.lineTo(12, 26);
+    zombieG.lineTo(16, 22);
+    zombieG.lineTo(20, 26);
+    zombieG.lineTo(24, 22);
+    zombieG.strokePath();
+
+    // Forehead veins
+    zombieG.lineStyle(1, 0x8e44ad, 0.6);
+    zombieG.lineBetween(12, 4, 10, 8);
+    zombieG.lineBetween(18, 2, 20, 6);
+
+    zombieG.generateTexture('zombie_scary', 32, 32);
 
     // Bullet, Drops & Particles
     const b = scene.make.graphics({ x: 0, y: 0, add: false });
@@ -245,11 +275,11 @@ function createZombie(scene) {
     else if (side === 2) { x = -100; y = Phaser.Math.Between(0, 600); }
     else { x = 900; y = Phaser.Math.Between(0, 600); }
 
-    // Using the new detailed texture
-    const zombie = scene.add.sprite(x, y, 'zombie');
+    // Using the new Scary texture
+    const zombie = scene.add.sprite(x, y, 'zombie_scary');
 
     // Add random variety (scale and tint)
-    zombie.setScale(Phaser.Math.FloatBetween(0.9, 1.2));
+    zombie.setScale(Phaser.Math.FloatBetween(1.0, 1.3));
     const tint = Phaser.Math.Between(0xdddddd, 0xffffff);
     zombie.setTint(tint);
 
@@ -265,6 +295,7 @@ function createZombie(scene) {
 
     scene.physics.add.existing(zombie);
     zombie.body.setCircle(14, 2, 2);
+    zombie.body.setAngularVelocity(0); // Lock rotation
 
     zombie.maxHp = 80 * gameState.zombieHpMultiplier;
     zombie.hp = zombie.maxHp;
@@ -340,7 +371,7 @@ function damageZombie(scene, bullet, zombie, dmg) {
     // Visual feedback (flash red)
     zombie.setTint(0xff0000);
     scene.time.delayedCall(100, () => {
-        if (zombie.active) zombie.setTint(0xffffff);
+        if (zombie.active) zombie.clearTint();
     });
 
     if (zombie.hp <= 0) {
