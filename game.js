@@ -43,6 +43,9 @@ const gameState = {
     maxTurrets: 4,
     turretFireRate: 800,
     turretRange: 350,
+    // Resources
+    wood: 0,
+    stone: 0,
     turretBulletDamage: 40,
     isGameOver: false
 };
@@ -50,6 +53,7 @@ const gameState = {
 const game = new Phaser.Game(config);
 let player, base, zombies, bullets, turretBullets, turrets, cursors, keys, shopContainer, shopItemsContainer, shopMask;
 let waveTimer, spawnTimer, hpGraphics;
+let resources, drops, sellZone;
 
 function preload() { }
 
@@ -72,6 +76,14 @@ function create() {
     turretBullets = this.physics.add.group({ defaultKey: 'bullet_tex', maxSize: 100 });
     zombies = this.physics.add.group();
     turrets = this.add.group();
+    resources = this.physics.add.staticGroup();
+    drops = this.physics.add.group();
+
+    spawnResources(this);
+
+    // Selling Zone around base
+    sellZone = this.add.circle(400, 300, 100, 0x00ff88, 0.1);
+    this.physics.add.existing(sellZone, true);
 
     // Input
     cursors = this.input.keyboard.createCursorKeys();
@@ -87,6 +99,11 @@ function create() {
     this.physics.add.overlap(turretBullets, zombies, (bullet, zombie) => damageZombie(this, bullet, zombie, gameState.turretBulletDamage));
     this.physics.add.overlap(zombies, base, (baseObj, zombie) => damageBase(this, zombie));
     this.physics.add.overlap(zombies, player, (playerObj, zombie) => damagePlayer(this, zombie));
+
+    // Resource Interactions
+    this.physics.add.overlap(bullets, resources, (bullet, res) => damageResource(this, bullet, res));
+    this.physics.add.overlap(player, drops, (p, d) => collectItem(this, p, d));
+    this.physics.add.overlap(player, sellZone, () => sellResources(this));
 
     // Timers
     waveTimer = this.time.addEvent({ delay: 30000, callback: nextWave, callbackScope: this, loop: true });
@@ -147,6 +164,27 @@ function generateTextures(scene) {
         grass.fillPoint(Phaser.Math.Between(0, 64), Phaser.Math.Between(0, 64), 2);
     }
     grass.generateTexture('grass_tex', 64, 64);
+
+    // Tree Texture
+    const tree = scene.make.graphics({ x: 0, y: 0, add: false });
+    tree.fillStyle(0x5d4037).fillRect(14, 24, 4, 8); // Trunk
+    tree.fillStyle(0x1b5e20).fillCircle(16, 12, 12); // Leaves
+    tree.generateTexture('tree_tex', 32, 32);
+
+    // Rock Texture
+    const rock = scene.make.graphics({ x: 0, y: 0, add: false });
+    rock.fillStyle(0x757575);
+    rock.fillPoints([{ x: 8, y: 24 }, { x: 4, y: 12 }, { x: 16, y: 4 }, { x: 28, y: 12 }, { x: 24, y: 24 }]);
+    rock.generateTexture('rock_tex', 32, 32);
+
+    // Drops
+    const woodDrop = scene.make.graphics({ x: 0, y: 0, add: false });
+    woodDrop.fillStyle(0x8d6e63).fillRect(0, 0, 8, 8);
+    woodDrop.generateTexture('wood_drop', 8, 8);
+
+    const stoneDrop = scene.make.graphics({ x: 0, y: 0, add: false });
+    stoneDrop.fillStyle(0x9e9e9e).fillRect(0, 0, 8, 8);
+    stoneDrop.generateTexture('stone_drop', 8, 8);
 
     // Bullet
     const b = scene.make.graphics({ x: 0, y: 0, add: false });
@@ -360,6 +398,82 @@ function updateSpawnTimer(scene) {
     });
 }
 
+function spawnResources(scene) {
+    // 10 Trees
+    for (let i = 0; i < 10; i++) {
+        let x, y;
+        do {
+            x = Phaser.Math.Between(50, 750);
+            y = Phaser.Math.Between(50, 550);
+        } while (Phaser.Math.Distance.Between(x, y, 400, 300) < 150);
+
+        const tree = resources.create(x, y, 'tree_tex');
+        tree.type = 'wood';
+        tree.hp = 100;
+    }
+    // 5 Rocks
+    for (let i = 0; i < 5; i++) {
+        let x, y;
+        do {
+            x = Phaser.Math.Between(50, 750);
+            y = Phaser.Math.Between(50, 550);
+        } while (Phaser.Math.Distance.Between(x, y, 400, 300) < 150);
+
+        const rock = resources.create(x, y, 'rock_tex');
+        rock.type = 'stone';
+        rock.hp = 150;
+    }
+}
+
+function damageResource(scene, bullet, resource) {
+    bullet.destroy();
+    resource.hp -= 25;
+
+    // Shake effect
+    scene.tweens.add({
+        targets: resource,
+        x: resource.x + Phaser.Math.Between(-2, 2),
+        duration: 50,
+        yoyo: true
+    });
+
+    if (resource.hp <= 0) {
+        const dropKey = resource.type === 'wood' ? 'wood_drop' : 'stone_drop';
+        const drop = drops.create(resource.x, resource.y, dropKey);
+        drop.resourceType = resource.type;
+        resource.destroy();
+    }
+}
+
+function collectItem(scene, player, item) {
+    if (item.resourceType === 'wood') gameState.wood++;
+    else gameState.stone++;
+
+    updateHUD(scene);
+    item.destroy();
+}
+
+function sellResources(scene) {
+    if (gameState.wood === 0 && gameState.stone === 0) return;
+
+    const profit = (gameState.wood * 10) + (gameState.stone * 25);
+    gameState.gold += profit;
+
+    // Feedback text
+    const txt = scene.add.text(400, 260, `+${profit} OURO!`, { fontSize: '24px', color: '#00ff00', fontStyle: 'bold' }).setOrigin(0.5);
+    scene.tweens.add({
+        targets: txt,
+        y: 200,
+        alpha: 0,
+        duration: 1000,
+        onComplete: () => txt.destroy()
+    });
+
+    gameState.wood = 0;
+    gameState.stone = 0;
+    updateHUD(scene);
+}
+
 function drawHPBars(scene) {
     hpGraphics.clear();
     zombies.children.iterate((z) => {
@@ -386,7 +500,7 @@ function toggleUpgradeMenu(scene) {
 }
 
 function updateHUD(scene) {
-    scene.hudText.setText(`ONDA: ${gameState.wave} | OURO: ${gameState.gold}\nHP JOGADOR: ${Math.ceil(gameState.playerHp)} | HP BASE: ${Math.ceil(gameState.baseHp)}`);
+    scene.hudText.setText(`ONDA: ${gameState.wave} | OURO: ${gameState.gold}\nHP JOGADOR: ${Math.ceil(gameState.playerHp)} | HP BASE: ${Math.ceil(gameState.baseHp)}\nMADEIRA: ${gameState.wood} | PEDRA: ${gameState.stone}`);
 }
 
 function createShopMenu(scene) {
