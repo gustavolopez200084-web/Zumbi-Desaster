@@ -47,13 +47,14 @@ const gameState = {
     wood: 0,
     stone: 0,
     turretBulletDamage: 40,
-    isGameOver: false
+    isGameOver: false,
+    isBuildMode: false
 };
 
 const game = new Phaser.Game(config);
 let player, base, zombies, bullets, turretBullets, turrets, cursors, keys, shopContainer, shopItemsContainer, shopMask;
 let waveTimer, spawnTimer, hpGraphics;
-let resources, drops, sellZone;
+let resources, drops, sellZone, ghostTurret, buildText;
 
 function preload() { }
 
@@ -130,12 +131,22 @@ function create() {
 
     this.hudContainer.add([this.goldText, this.woodText, this.stoneText, this.waveText]);
 
+    buildText = this.add.text(400, 550, 'CLIQUE NO MAPA PARA POSICIONAR A TORRETA', {
+        fontSize: '20px', fill: '#00e5ff', fontStyle: 'bold', fontFamily: 'Arial Black', stroke: '#000', strokeThickness: 4
+    }).setOrigin(0.5).setScrollFactor(0).setVisible(false).setDepth(200);
+
     createShopMenu(this);
 }
 
 function update(time, delta) {
     if (gameState.isGameOver || gameState.isStoreOpen) {
         if (gameState.isStoreOpen) player.body.setVelocity(0);
+        return;
+    }
+
+    if (gameState.isBuildMode) {
+        handleBuildMode(this);
+        player.body.setVelocity(0);
         return;
     }
 
@@ -305,12 +316,20 @@ function createZombie(scene) {
 
 function createTurret(scene, x, y) {
     const t = scene.add.container(x, y);
-    const b = scene.add.circle(0, 0, 22, 0x7f8c8d).setStrokeStyle(2, 0x2c3e50);
-    const g = scene.add.rectangle(0, 0, 34, 12, 0x34495e).setOrigin(0, 0.5);
-    t.add([b, g]);
-    t.gun = g;
+    // Metallic square base
+    const baseObj = scene.add.rectangle(0, 0, 44, 44, 0x546e7a).setStrokeStyle(2, 0x263238);
+    // Double barrels
+    const gContainer = scene.add.container(0, 0);
+    const barrel1 = scene.add.rectangle(5, -6, 36, 8, 0x212121).setOrigin(0, 0.5);
+    const barrel2 = scene.add.rectangle(5, 6, 36, 8, 0x212121).setOrigin(0, 0.5);
+    gContainer.add([barrel1, barrel2]);
+
+    t.add([baseObj, gContainer]);
+    t.gun = gContainer;
     t.lastFired = 0;
+    t.setDepth(5);
     turrets.add(t);
+    return t;
 }
 
 // --- Combat ---
@@ -336,15 +355,26 @@ function updateTurret(scene, t, time) {
     });
 
     if (closest) {
-        const angle = Phaser.Math.Angle.Between(t.x, t.y, closest.x, closest.y);
-        t.gun.setRotation(angle);
-        const b = turretBullets.get(t.x, t.y);
-        if (b) {
-            b.setActive(true).setVisible(true).setPosition(t.x, t.y);
-            scene.physics.add.existing(b);
-            b.body.setVelocity(Math.cos(angle) * 850, Math.sin(angle) * 850);
-            scene.time.addEvent({ delay: 2000, callback: () => { if (b.active) b.destroy(); } });
-            t.lastFired = time;
+        // Predictive Aiming: Predict position in 0.25 seconds
+        const predictX = closest.x + (closest.body.velocity.x * 0.25);
+        const predictY = closest.y + (closest.body.velocity.y * 0.25);
+        const targetAngle = Phaser.Math.Angle.Between(t.x, t.y, predictX, predictY);
+
+        // Smooth rotation
+        t.gun.rotation = Phaser.Math.Angle.RotateTo(t.gun.rotation, targetAngle, 0.1);
+
+        // Only fire if pointing close to the target
+        if (Math.abs(Phaser.Math.Angle.Wrap(t.gun.rotation - targetAngle)) < 0.2) {
+            const b = turretBullets.get(t.x, t.y);
+            if (b) {
+                b.setActive(true).setVisible(true).setPosition(t.x, t.y);
+                scene.physics.add.existing(b);
+                // Faster bullet for prediction accuracy
+                b.body.setVelocity(Math.cos(t.gun.rotation) * 1200, Math.sin(t.gun.rotation) * 1200);
+                scene.time.addEvent({ delay: 1500, callback: () => { if (b.active) b.destroy(); } });
+                t.lastFired = time;
+                scene.cameras.main.shake(50, 0.001); // Subtle feedback
+            }
         }
     }
 }
@@ -621,9 +651,9 @@ function createShopMenu(scene) {
                     success = true;
                 } else if (it.key === 'turret' && gameState.turretsCount < 4) {
                     gameState.gold -= it.cost;
-                    const pos = [[100, 100], [700, 100], [100, 500], [700, 500]][gameState.turretsCount];
-                    createTurret(scene, pos[0], pos[1]);
-                    gameState.turretsCount++;
+                    gameState.isBuildMode = true;
+                    toggleUpgradeMenu(scene); // Close shop
+                    startBuildMode(scene);
                     success = true;
                 } else if (it.key === 'bulletSpeed') {
                     gameState.gold -= it.cost;
@@ -663,6 +693,44 @@ function createShopMenu(scene) {
             shopItemsContainer.y = Phaser.Math.Clamp(shopItemsContainer.y, -250, 0);
         }
     });
+}
+
+function startBuildMode(scene) {
+    ghostTurret = scene.add.container(0, 0).setAlpha(0.5);
+    const baseObj = scene.add.rectangle(0, 0, 44, 44, 0x546e7a).setStrokeStyle(2, 0xffffff);
+    const gContainer = scene.add.container(0, 0);
+    const barrel1 = scene.add.rectangle(5, -6, 36, 8, 0x212121).setOrigin(0, 0.5);
+    const barrel2 = scene.add.rectangle(5, 6, 36, 8, 0x212121).setOrigin(0, 0.5);
+    gContainer.add([barrel1, barrel2]);
+    ghostTurret.add([baseObj, gContainer]);
+    buildText.setVisible(true);
+}
+
+function handleBuildMode(scene) {
+    const pointer = scene.input.activePointer;
+    ghostTurret.setPosition(pointer.x, pointer.y);
+
+    // Check collision with Base or Resources
+    let canPlace = true;
+    const distToBase = Phaser.Math.Distance.Between(pointer.x, pointer.y, 400, 300);
+    if (distToBase < 100) canPlace = false;
+
+    resources.children.iterate((res) => {
+        if (canPlace && Phaser.Math.Distance.Between(pointer.x, pointer.y, res.x, res.y) < 50) {
+            canPlace = false;
+        }
+    });
+
+    ghostTurret.first.setStrokeStyle(2, canPlace ? 0x00ff00 : 0xff0000);
+
+    if (pointer.isDown && canPlace) {
+        createTurret(scene, pointer.x, pointer.y);
+        gameState.turretsCount++;
+        gameState.isBuildMode = false;
+        ghostTurret.destroy();
+        buildText.setVisible(false);
+        updateHUD(scene);
+    }
 }
 
 function gameOver(scene) {
