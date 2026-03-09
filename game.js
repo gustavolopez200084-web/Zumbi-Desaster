@@ -190,12 +190,26 @@ function update(time, delta) {
 // --- Creation Helpers ---
 
 function generateTextures(scene) {
-    // 1. Soft Grass Background
+    // 1. Natural Forest Grass (Muted tones)
     const grass = scene.make.graphics({ x: 0, y: 0, add: false });
-    grass.fillStyle(0x7cfc00).fillRect(0, 0, 64, 64);
-    grass.fillStyle(0x66cc00, 0.2); // Subtle pattern
-    for (let i = 0; i < 5; i++) {
-        grass.fillCircle(Phaser.Math.Between(0, 64), Phaser.Math.Between(0, 64), 8);
+    grass.fillStyle(0x5d7d4a).fillRect(0, 0, 64, 64); // Muted sage green base
+
+    // Add subtle texture: small blades and dots
+    for (let i = 0; i < 40; i++) {
+        const x = Phaser.Math.Between(0, 64);
+        const y = Phaser.Math.Between(0, 64);
+        const color = Phaser.Math.RND.pick([0x4a6741, 0x6b8e23, 0x556b2f]);
+        const alpha = Phaser.Math.FloatBetween(0.1, 0.4);
+
+        grass.fillStyle(color, alpha);
+        // Draw small grass tufts (randomly sized thin rectangles)
+        grass.fillRect(x, y, Phaser.Math.Between(1, 2), Phaser.Math.Between(2, 4));
+
+        // Add tiny dirt/soil variants
+        if (i % 5 === 0) {
+            grass.fillStyle(0x3e2723, 0.1); // Very subtle dark brown
+            grass.fillPoint(Phaser.Math.Between(0, 64), Phaser.Math.Between(0, 64), 2);
+        }
     }
     grass.generateTexture('grass_tex', 64, 64);
 
