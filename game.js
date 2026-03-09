@@ -170,69 +170,78 @@ function update(time, delta) {
 // --- Creation Helpers ---
 
 function generateTextures(scene) {
-    // Grass: Light/Yellowish green for better contrast
+    // 1. Grass: More detailed with 100 random dots for noise
     const grass = scene.make.graphics({ x: 0, y: 0, add: false });
     grass.fillStyle(0x90ee90).fillRect(0, 0, 64, 64);
-    grass.fillStyle(0x7cfc00, 0.5);
-    for (let i = 0; i < 15; i++) {
-        grass.fillPoint(Phaser.Math.Between(0, 64), Phaser.Math.Between(0, 64), 3);
+    for (let i = 0; i < 100; i++) {
+        const x = Phaser.Math.Between(0, 64);
+        const y = Phaser.Math.Between(0, 64);
+        const color = Phaser.Math.RND.pick([0x7cfc00, 0x81c784, 0xaed581]);
+        grass.fillStyle(color, 0.4).fillRect(x, y, 2, 2);
     }
     grass.generateTexture('grass_tex', 64, 64);
+
+    // 2. Organic Trees
+    const tree = scene.make.graphics({ x: 0, y: 0, add: false });
+    // Shadow
+    tree.fillStyle(0x000000, 0.2).fillEllipse(16, 28, 20, 10);
+    // Trunk
+    tree.lineStyle(2, 0x000000).fillStyle(0x5d4037).fillRect(14, 20, 6, 12).strokeRect(14, 20, 6, 12);
+    // Leaves (Nuance of circles)
+    tree.fillStyle(0x006400);
+    tree.fillCircle(16, 10, 12).fillCircle(10, 14, 8).fillCircle(22, 14, 8);
+    tree.strokeCircle(16, 10, 12).strokeCircle(10, 14, 8).strokeCircle(22, 14, 8);
+    tree.generateTexture('tree_tex', 32, 40);
+
+    // 3. Irregular Rocks with Internal Highlight
+    const rock = scene.make.graphics({ x: 0, y: 0, add: false });
+    rock.fillStyle(0x000000, 0.2).fillEllipse(16, 24, 24, 12); // Shadow
+    rock.lineStyle(2, 0x000000);
+    rock.fillStyle(0x607d8b); // Bluish gray
+    const points = [{ x: 4, y: 20 }, { x: 2, y: 10 }, { x: 12, y: 2 }, { x: 24, y: 4 }, { x: 30, y: 12 }, { x: 26, y: 24 }, { x: 10, y: 28 }];
+    rock.fillPoints(points, true).strokePoints(points, true);
+    // Bevel/Highlight line
+    rock.lineStyle(2, 0x90a4ae, 0.8).lineBetween(12, 4, 24, 6).lineBetween(12, 4, 6, 12);
+    rock.generateTexture('rock_tex', 32, 32);
 
     // Bullet
     const b = scene.make.graphics({ x: 0, y: 0, add: false });
     b.fillStyle(0xffff00).fillCircle(4, 4, 4);
     b.generateTexture('bullet_tex', 8, 8);
 
-    // Realistic Zombie Texture
+    // 4. Detalhado Zombie Texture
     const z = scene.make.graphics({ x: 0, y: 0, add: false });
-
-    // Body (Rotting Skin)
-    z.fillStyle(0x27ae60).fillCircle(16, 16, 14); // Main base
-
-    // Skin texture noise/patches
-    for (let i = 0; i < 20; i++) {
-        const color = Phaser.Display.Color.Interpolate.ColorWithColor(
-            Phaser.Display.Color.ValueToColor(0x27ae60),
-            Phaser.Display.Color.ValueToColor(0x145a32),
-            100, Phaser.Math.Between(0, 100)
-        );
-        z.fillStyle(Phaser.Display.Color.GetColor(color.r, color.g, color.b));
-        z.fillCircle(Phaser.Math.Between(6, 26), Phaser.Math.Between(6, 26), Phaser.Math.Between(2, 6));
-    }
-
-    // Blood splatters
-    z.fillStyle(0x7b241c);
-    for (let i = 0; i < 10; i++) {
-        z.fillCircle(Phaser.Math.Between(8, 24), Phaser.Math.Between(8, 24), Phaser.Math.Between(1, 3));
-    }
-
-    // Eyes (Sunken and glowing)
-    z.fillStyle(0x000000).fillCircle(11, 10, 4).fillCircle(21, 10, 4); // Sockets
-    z.fillStyle(0xffffff).fillCircle(11, 10, 2).fillCircle(21, 10, 2); // Whites
-    z.fillStyle(0xff0000).fillCircle(11, 10, 1).fillCircle(21, 10, 1); // Pupils
-
-    // Mouth (Ragged)
-    z.fillStyle(0x1a1a1a);
-    z.fillRect(10, 20, 12, 4);
-    z.fillStyle(0xffffff); // Teeth
-    for (let i = 0; i < 4; i++) {
-        z.fillRect(11 + (i * 3), 20, 1, 2);
-    }
-
+    z.fillStyle(0x27ae60).fillCircle(16, 16, 14).lineStyle(2, 0x145a32).strokeCircle(16, 16, 14);
+    // Eyes: White with black pupils
+    z.fillStyle(0xffffff).fillCircle(10, 12, 4).fillCircle(22, 12, 4);
+    z.fillStyle(0x000000).fillCircle(10, 12, 2).fillCircle(22, 12, 2);
+    // Mouth: Red curve
+    z.lineStyle(2, 0xff0000).beginPath().arc(16, 20, 6, 0.2, 2.9).strokePath();
     z.generateTexture('zombie_tex', 32, 32);
 
     // Blood Particle
     const bp = scene.make.graphics({ x: 0, y: 0, add: false });
     bp.fillStyle(0x922b21).fillRect(0, 0, 4, 4);
     bp.generateTexture('blood_drop', 4, 4);
+
+    // Drops
+    const woodDrop = scene.make.graphics({ x: 0, y: 0, add: false });
+    woodDrop.lineStyle(1, 0x000000).fillStyle(0x8d6e63).fillRect(0, 0, 10, 10).strokeRect(0, 0, 10, 10);
+    woodDrop.generateTexture('wood_drop', 10, 10);
+
+    const stoneDrop = scene.make.graphics({ x: 0, y: 0, add: false });
+    stoneDrop.lineStyle(1, 0x000000).fillStyle(0x9e9e9e).fillRect(0, 0, 10, 10).strokeRect(0, 0, 10, 10);
+    stoneDrop.generateTexture('stone_drop', 10, 10);
 }
 
 function createPlayer(scene) {
     player = scene.add.container(400, 450);
-    const body = scene.add.circle(0, 0, 20, 0x3498db).setStrokeStyle(2, 0x21618c);
-    const visor = scene.add.rectangle(12, 0, 10, 18, 0x00ffff, 0.7);
-    const gun = scene.add.rectangle(15, 8, 28, 8, 0x333333).setOrigin(0, 0.5);
+    // Body (Cobalt Blue Metallic)
+    const body = scene.add.circle(0, 0, 20, 0x3d5afe).setStrokeStyle(2, 0x000000);
+    // Visor (Cyan with glow)
+    const visor = scene.add.rectangle(12, 0, 12, 18, 0x00e5ff, 1);
+    // Gun (Dark Gray Metallic Barrel)
+    const gun = scene.add.rectangle(0, 8, 32, 10, 0x1a1a1a).setOrigin(0, 0.5);
     player.add([body, visor, gun]);
     scene.physics.add.existing(player);
     player.body.setCircle(20, -20, -20).setCollideWorldBounds(true);
@@ -548,7 +557,7 @@ function createShopMenu(scene) {
         fontFamily: 'Arial Black',
         stroke: '#000',
         strokeThickness: 6
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setShadow(3, 3, '#000', 4);
 
     shopItemsContainer = scene.add.container(0, 0);
 
@@ -568,8 +577,8 @@ function createShopMenu(scene) {
         const btn = scene.add.rectangle(0, 0, 420, 60, baseColor, 0.6).setInteractive({ useHandCursor: true });
         btn.setStrokeStyle(2, 0xffffff, 0.3);
 
-        const label = scene.add.text(-200, 0, it.name, { fontSize: '20px', color: '#fff', fontStyle: 'bold', fontFamily: 'Arial Black' }).setOrigin(0, 0.5);
-        const costLabel = scene.add.text(200, 0, `💰 ${it.cost}`, { fontSize: '20px', color: '#f1c40f', fontStyle: 'bold', fontFamily: 'Arial Black' }).setOrigin(1, 0.5);
+        const label = scene.add.text(-200, 0, it.name, { fontSize: '20px', color: '#fff', fontStyle: 'bold', fontFamily: 'Arial Black' }).setOrigin(0, 0.5).setShadow(2, 2, '#000', 4);
+        const costLabel = scene.add.text(200, 0, `💰 ${it.cost}`, { fontSize: '20px', color: '#f1c40f', fontStyle: 'bold', fontFamily: 'Arial Black' }).setOrigin(1, 0.5).setShadow(2, 2, '#000', 4);
 
         row.add([btn, label, costLabel]);
         shopItemsContainer.add(row);
