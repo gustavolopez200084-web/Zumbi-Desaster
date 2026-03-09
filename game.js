@@ -104,7 +104,7 @@ function update(time, delta) {
         return;
     }
 
-    this.hudText.setText(`ONDA: ${gameState.wave} | OURO: ${gameState.gold}\nHP JOGADOR: ${Math.ceil(gameState.playerHp)} | HP BASE: ${Math.ceil(gameState.baseHp)}`);
+    updateHUD(this);
 
     const pointer = this.input.activePointer;
     player.rotation = Phaser.Math.Angle.Between(player.x, player.y, pointer.x, pointer.y);
@@ -209,6 +209,8 @@ function createPlayer(scene) {
 }
 
 function createZombie(scene) {
+    if (gameState.isStoreOpen || gameState.isGameOver) return;
+
     const side = Phaser.Math.Between(0, 3);
     let x, y;
     if (side === 0) { x = Phaser.Math.Between(0, 800); y = -100; }
@@ -375,10 +377,16 @@ function toggleUpgradeMenu(scene) {
     if (gameState.isStoreOpen) {
         shopContainer.setVisible(true);
         scene.physics.world.pause();
+        if (spawnTimer) spawnTimer.paused = true;
     } else {
         shopContainer.setVisible(false);
         scene.physics.world.resume();
+        if (spawnTimer) spawnTimer.paused = false;
     }
+}
+
+function updateHUD(scene) {
+    scene.hudText.setText(`ONDA: ${gameState.wave} | OURO: ${gameState.gold}\nHP JOGADOR: ${Math.ceil(gameState.playerHp)} | HP BASE: ${Math.ceil(gameState.baseHp)}`);
 }
 
 function createShopMenu(scene) {
@@ -406,28 +414,47 @@ function createShopMenu(scene) {
 
         btn.on('pointerover', () => btn.setFillStyle(0x333333));
         btn.on('pointerout', () => btn.setFillStyle(0x222222));
-        btn.on('pointerdown', () => {
+        btn.on('pointerdown', (pointer, localX, localY, event) => {
+            if (event) event.stopPropagation();
+
             if (gameState.gold >= it.cost) {
+                let success = false;
                 if (it.key === 'repair') {
                     if (gameState.baseHp < gameState.baseMaxHp) {
                         gameState.gold -= it.cost;
                         gameState.baseHp = Math.min(gameState.baseMaxHp, gameState.baseHp + 50);
+                        success = true;
                     }
                 } else if (it.key === 'turret' && gameState.turretsCount < 4) {
                     gameState.gold -= it.cost;
                     const pos = [[100, 100], [700, 100], [100, 500], [700, 500]][gameState.turretsCount];
                     createTurret(scene, pos[0], pos[1]);
                     gameState.turretsCount++;
+                    success = true;
                 } else if (it.key === 'bulletSpeed') {
                     gameState.gold -= it.cost;
                     gameState.bulletSpeed += it.inc;
+                    success = true;
                 } else if (it.key === 'bulletDamage') {
                     gameState.gold -= it.cost;
                     gameState.bulletDamage += it.inc;
+                    success = true;
                 } else if (it.key === 'turretDmg') {
                     gameState.gold -= it.cost;
                     gameState.turretBulletDamage += it.inc;
+                    success = true;
                 }
+
+                if (success) {
+                    updateHUD(scene);
+                    // Visual feedback: Flash green
+                    btn.setFillStyle(0x00ff88);
+                    scene.time.delayedCall(100, () => btn.setFillStyle(0x333333));
+                }
+            } else {
+                // Not enough gold: Flash red
+                btn.setFillStyle(0xff0000);
+                scene.time.delayedCall(100, () => btn.setFillStyle(0x222222));
             }
         });
     });
