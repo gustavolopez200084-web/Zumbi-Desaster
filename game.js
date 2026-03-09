@@ -642,7 +642,7 @@ function createShopMenu(scene) {
     shopItemsContainer = scene.add.container(0, 0);
 
     const items = [
-        { name: 'Up Vel. Tiro', key: 'bulletSpeed', cost: 150, inc: 100, type: 'up' },
+        { name: 'Up Cadência', key: 'fireRate', cost: 150, dec: 20, type: 'up' },
         { name: 'Up Dano Player', key: 'bulletDamage', cost: 200, inc: 25, type: 'up' },
         { name: 'Reparar Base (+50)', key: 'repair', cost: 300, type: 'buy' },
         { name: 'Comprar Torreta', key: 'turret', cost: 1500, type: 'buy' },
@@ -687,10 +687,12 @@ function createShopMenu(scene) {
                     toggleUpgradeMenu(scene); // Close shop
                     startBuildMode(scene);
                     success = true;
-                } else if (it.key === 'bulletSpeed') {
-                    gameState.gold -= it.cost;
-                    gameState.bulletSpeed += it.inc;
-                    success = true;
+                } else if (it.key === 'fireRate') {
+                    if (gameState.fireRate > 50) { // Limit fire rate to 50ms
+                        gameState.gold -= it.cost;
+                        gameState.fireRate -= it.dec;
+                        success = true;
+                    }
                 } else if (it.key === 'bulletDamage') {
                     gameState.gold -= it.cost;
                     gameState.bulletDamage += it.inc;
