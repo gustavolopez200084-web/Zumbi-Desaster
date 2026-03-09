@@ -139,6 +139,7 @@ function update(time, delta) {
 // --- Creation Helpers ---
 
 function generateTextures(scene) {
+    // Grass: Grass with tile dots
     const grass = scene.make.graphics({ x: 0, y: 0, add: false });
     grass.fillStyle(0x2d5a27).fillRect(0, 0, 64, 64);
     grass.fillStyle(0x1e3c1a);
@@ -147,9 +148,53 @@ function generateTextures(scene) {
     }
     grass.generateTexture('grass_tex', 64, 64);
 
+    // Bullet
     const b = scene.make.graphics({ x: 0, y: 0, add: false });
     b.fillStyle(0xffff00).fillCircle(4, 4, 4);
     b.generateTexture('bullet_tex', 8, 8);
+
+    // Realistic Zombie Texture
+    const z = scene.make.graphics({ x: 0, y: 0, add: false });
+
+    // Body (Rotting Skin)
+    z.fillStyle(0x27ae60).fillCircle(16, 16, 14); // Main base
+
+    // Skin texture noise/patches
+    for (let i = 0; i < 20; i++) {
+        const color = Phaser.Display.Color.Interpolate.ColorWithColor(
+            Phaser.Display.Color.ValueToColor(0x27ae60),
+            Phaser.Display.Color.ValueToColor(0x145a32),
+            100, Phaser.Math.Between(0, 100)
+        );
+        z.fillStyle(Phaser.Display.Color.GetColor(color.r, color.g, color.b));
+        z.fillCircle(Phaser.Math.Between(6, 26), Phaser.Math.Between(6, 26), Phaser.Math.Between(2, 6));
+    }
+
+    // Blood splatters
+    z.fillStyle(0x7b241c);
+    for (let i = 0; i < 10; i++) {
+        z.fillCircle(Phaser.Math.Between(8, 24), Phaser.Math.Between(8, 24), Phaser.Math.Between(1, 3));
+    }
+
+    // Eyes (Sunken and glowing)
+    z.fillStyle(0x000000).fillCircle(11, 10, 4).fillCircle(21, 10, 4); // Sockets
+    z.fillStyle(0xffffff).fillCircle(11, 10, 2).fillCircle(21, 10, 2); // Whites
+    z.fillStyle(0xff0000).fillCircle(11, 10, 1).fillCircle(21, 10, 1); // Pupils
+
+    // Mouth (Ragged)
+    z.fillStyle(0x1a1a1a);
+    z.fillRect(10, 20, 12, 4);
+    z.fillStyle(0xffffff); // Teeth
+    for (let i = 0; i < 4; i++) {
+        z.fillRect(11 + (i * 3), 20, 1, 2);
+    }
+
+    z.generateTexture('zombie_tex', 32, 32);
+
+    // Blood Particle
+    const bp = scene.make.graphics({ x: 0, y: 0, add: false });
+    bp.fillStyle(0x922b21).fillRect(0, 0, 4, 4);
+    bp.generateTexture('blood_drop', 4, 4);
 }
 
 function createPlayer(scene) {
@@ -171,14 +216,26 @@ function createZombie(scene) {
     else if (side === 2) { x = -100; y = Phaser.Math.Between(0, 600); }
     else { x = 900; y = Phaser.Math.Between(0, 600); }
 
-    const zombie = scene.add.container(x, y);
-    const body = scene.add.circle(0, 0, 16, 0x27ae60).setStrokeStyle(2, 0x1e8449);
-    const eye1 = scene.add.circle(6, -6, 3, 0x000000);
-    const eye2 = scene.add.circle(6, 6, 3, 0x000000);
-    const mouth = scene.add.rectangle(9, 0, 2, 8, 0x000000);
-    zombie.add([body, eye1, eye2, mouth]);
+    // Using the new detailed texture
+    const zombie = scene.add.sprite(x, y, 'zombie_tex');
+
+    // Add random variety (scale and tint)
+    zombie.setScale(Phaser.Math.FloatBetween(0.9, 1.2));
+    const tint = Phaser.Math.Between(0xdddddd, 0xffffff);
+    zombie.setTint(tint);
+
+    // Subtle breathing/pulsing effect
+    scene.tweens.add({
+        targets: zombie,
+        scale: zombie.scale * 1.05,
+        duration: Phaser.Math.Between(800, 1200),
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+    });
+
     scene.physics.add.existing(zombie);
-    zombie.body.setCircle(16, -16, -16);
+    zombie.body.setCircle(14, 2, 2);
 
     zombie.maxHp = 80 * gameState.zombieHpMultiplier;
     zombie.hp = zombie.maxHp;
@@ -234,8 +291,29 @@ function updateTurret(scene, t, time) {
 
 function damageZombie(scene, bullet, zombie, dmg) {
     if (!zombie.active) return;
+
+    // Blood splatter effect
+    const particles = scene.add.particles(zombie.x, zombie.y, 'blood_drop', {
+        speed: { min: 50, max: 150 },
+        scale: { start: 1, end: 0 },
+        lifespan: 300,
+        gravityY: 0,
+        quantity: 5,
+        emitting: false
+    });
+    particles.explode(8);
+    // Cleanup particles after some time
+    scene.time.delayedCall(500, () => particles.destroy());
+
     bullet.destroy();
     zombie.hp -= dmg;
+
+    // Visual feedback (flash red)
+    zombie.setTint(0xff0000);
+    scene.time.delayedCall(100, () => {
+        if (zombie.active) zombie.setTint(0xffffff);
+    });
+
     if (zombie.hp <= 0) {
         gameState.gold += 20;
         zombie.destroy();
