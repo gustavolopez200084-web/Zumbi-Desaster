@@ -92,10 +92,28 @@ function create() {
 
     // Input
     cursors = this.input.keyboard.createCursorKeys();
-    keys = this.input.keyboard.addKeys('W,A,S,D,P');
+    keys = this.input.keyboard.addKeys('W,A,S,D,P,C');
 
     this.input.keyboard.on('keydown-P', () => {
         if (!gameState.isGameOver) toggleUpgradeMenu(this);
+    });
+
+    this.input.keyboard.on('keydown-C', () => {
+        if (!gameState.isGameOver) {
+            gameState.gold += 1000;
+            updateHUD(this);
+            pulseIcon(this, this.goldText);
+
+            // Feedback visual na base para o cheat
+            const cheatTxt = this.add.text(400, 260, "+1000 GOLD (CHEAT)", { fontSize: '24px', color: '#f1c40f', fontStyle: 'bold' }).setOrigin(0.5);
+            this.tweens.add({
+                targets: cheatTxt,
+                y: 200,
+                alpha: 0,
+                duration: 1000,
+                onComplete: () => cheatTxt.destroy()
+            });
+        }
     });
 
     // Collisions
