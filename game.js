@@ -63,10 +63,14 @@ function create() {
     // Ground: Fixed tiled background from pre-generated texture
     this.add.tileSprite(400, 300, 800, 600, 'grass_tex');
 
-    // Base (Central rectangle)
-    base = this.add.rectangle(400, 300, 80, 80, 0x444444);
-    base.setStrokeStyle(4, 0x00ff88);
+    // Base (Central rectangle with hospital cross)
+    base = this.add.container(400, 300);
+    const baseBg = this.add.rectangle(0, 0, 80, 80, 0x444444).setStrokeStyle(4, 0x00e5ff);
+    const cross1 = this.add.rectangle(0, 0, 10, 40, 0xff0000);
+    const cross2 = this.add.rectangle(0, 0, 40, 10, 0xff0000);
+    base.add([baseBg, cross1, cross2]);
     this.physics.add.existing(base, true);
+    base.body.setSize(80, 80);
 
     // Player (Container)
     createPlayer(this);
@@ -119,10 +123,10 @@ function create() {
     this.hudContainer.add(hudBg);
 
     const textStyle = { fontSize: '20px', fill: '#fff', fontStyle: 'bold', fontFamily: 'Arial Black', stroke: '#000', strokeThickness: 4 };
-    this.goldText = this.add.text(20, 15, '💰 0', textStyle);
-    this.woodText = this.add.text(180, 15, '🪵 0', textStyle);
-    this.stoneText = this.add.text(320, 15, '🪨 0', textStyle);
-    this.waveText = this.add.text(650, 15, 'ONDA: 1', textStyle);
+    this.goldText = this.add.text(30, 12, '💰 0', textStyle).setShadow(2, 2, '#000', 4);
+    this.woodText = this.add.text(200, 12, '🪵 0', textStyle).setShadow(2, 2, '#000', 4);
+    this.stoneText = this.add.text(370, 12, '🪨 0', textStyle).setShadow(2, 2, '#000', 4);
+    this.waveText = this.add.text(630, 12, 'ONDA: 1', textStyle).setShadow(2, 2, '#000', 4);
 
     this.hudContainer.add([this.goldText, this.woodText, this.stoneText, this.waveText]);
 
@@ -170,44 +174,36 @@ function update(time, delta) {
 // --- Creation Helpers ---
 
 function generateTextures(scene) {
-    // 1. Grass Texture (Rendered once into a tile)
+    // 1. Soft Grass Background
     const grass = scene.make.graphics({ x: 0, y: 0, add: false });
-    grass.fillStyle(0x90ee90).fillRect(0, 0, 64, 64);
-    for (let i = 0; i < 100; i++) {
-        const x = Phaser.Math.Between(0, 64);
-        const y = Phaser.Math.Between(0, 64);
-        const color = Phaser.Math.RND.pick([0x7cfc00, 0x81c784, 0xaed581]);
-        grass.fillStyle(color, 0.4).fillRect(x, y, 2, 2);
+    grass.fillStyle(0x7cfc00).fillRect(0, 0, 64, 64);
+    grass.fillStyle(0x66cc00, 0.2); // Subtle pattern
+    for (let i = 0; i < 5; i++) {
+        grass.fillCircle(Phaser.Math.Between(0, 64), Phaser.Math.Between(0, 64), 8);
     }
     grass.generateTexture('grass_tex', 64, 64);
 
-    // 2. Organic Trees (Pre-rendered)
-    const tree = scene.make.graphics({ x: 0, y: 0, add: false });
-    tree.fillStyle(0x000000, 0.2).fillEllipse(16, 28, 20, 10); // Shadow
-    tree.lineStyle(2, 0x000000).fillStyle(0x5d4037).fillRect(14, 20, 6, 12).strokeRect(14, 20, 6, 12); // Trunk
-    tree.fillStyle(0x006400); // Leaves
-    tree.fillCircle(16, 10, 12).fillCircle(10, 14, 8).fillCircle(22, 14, 8);
-    tree.strokeCircle(16, 10, 12).strokeCircle(10, 14, 8).strokeCircle(22, 14, 8);
-    tree.generateTexture('tree_tex', 32, 40);
+    // 2. Tree Texture
+    const treeG = scene.make.graphics({ x: 0, y: 0, add: false });
+    treeG.fillStyle(0x5d4037).fillRect(12, 18, 8, 14); // Trunk
+    treeG.fillStyle(0x1b5e20).fillCircle(16, 12, 12); // Canopy
+    treeG.generateTexture('tree', 32, 32);
 
-    // 3. Irregular Rocks with Highlights (Pre-rendered)
-    const rock = scene.make.graphics({ x: 0, y: 0, add: false });
-    rock.fillStyle(0x000000, 0.2).fillEllipse(16, 24, 24, 12); // Shadow
-    rock.lineStyle(2, 0x000000).fillStyle(0x607d8b); // Base
-    const points = [{ x: 4, y: 20 }, { x: 2, y: 10 }, { x: 12, y: 2 }, { x: 24, y: 4 }, { x: 30, y: 12 }, { x: 26, y: 24 }, { x: 10, y: 28 }];
-    rock.fillPoints(points, true).strokePoints(points, true);
-    rock.lineStyle(2, 0x90a4ae, 0.8).lineBetween(12, 4, 24, 6).lineBetween(12, 4, 6, 12); // Highlight
-    rock.generateTexture('rock_tex', 32, 32);
+    // 3. Stone Texture
+    const stoneG = scene.make.graphics({ x: 0, y: 0, add: false });
+    stoneG.fillStyle(0x757575);
+    const stonePoints = [{ x: 12, y: 2 }, { x: 22, y: 10 }, { x: 18, y: 22 }, { x: 6, y: 20 }, { x: 2, y: 8 }];
+    stoneG.fillPoints(stonePoints, true);
+    stoneG.generateTexture('stone', 24, 24);
 
-    // 4. Detailed Zombie Texture
-    const z = scene.make.graphics({ x: 0, y: 0, add: false });
-    z.fillStyle(0x27ae60).fillCircle(16, 16, 14).lineStyle(2, 0x145a32).strokeCircle(16, 16, 14);
-    z.fillStyle(0xffffff).fillCircle(10, 12, 4).fillCircle(22, 12, 4); // Eyes
-    z.fillStyle(0x000000).fillCircle(10, 12, 2).fillCircle(22, 12, 2); // Pupils
-    z.lineStyle(2, 0xff0000).beginPath().arc(16, 20, 6, 0.2, 2.9).strokePath(); // Mouth
-    z.generateTexture('zombie_tex', 32, 32);
+    // 4. Zombie Texture
+    const zombieG = scene.make.graphics({ x: 0, y: 0, add: false });
+    zombieG.fillStyle(0x2ecc71).fillCircle(16, 16, 14); // Body
+    zombieG.fillStyle(0xff0000).fillCircle(10, 11, 3).fillCircle(22, 11, 3); // Red Eyes
+    zombieG.fillStyle(0x000000).fillRect(12, 22, 8, 2); // Mouth
+    zombieG.generateTexture('zombie', 32, 32);
 
-    // Bullet & Particles
+    // Bullet, Drops & Particles
     const b = scene.make.graphics({ x: 0, y: 0, add: false });
     b.fillStyle(0xffff00).fillCircle(4, 4, 4);
     b.generateTexture('bullet_tex', 8, 8);
@@ -217,11 +213,11 @@ function generateTextures(scene) {
     bp.generateTexture('blood_drop', 4, 4);
 
     const woodDrop = scene.make.graphics({ x: 0, y: 0, add: false });
-    woodDrop.lineStyle(1, 0x000000).fillStyle(0x8d6e63).fillRect(0, 0, 10, 10).strokeRect(0, 0, 10, 10);
+    woodDrop.fillStyle(0x8d6e63).fillRect(0, 0, 10, 10);
     woodDrop.generateTexture('wood_drop', 10, 10);
 
     const stoneDrop = scene.make.graphics({ x: 0, y: 0, add: false });
-    stoneDrop.lineStyle(1, 0x000000).fillStyle(0x9e9e9e).fillRect(0, 0, 10, 10).strokeRect(0, 0, 10, 10);
+    stoneDrop.fillStyle(0x9e9e9e).fillRect(0, 0, 10, 10);
     stoneDrop.generateTexture('stone_drop', 10, 10);
 }
 
@@ -231,8 +227,8 @@ function createPlayer(scene) {
     const body = scene.add.circle(0, 0, 20, 0x3d5afe).setStrokeStyle(2, 0x000000);
     // Visor (Cyan with glow)
     const visor = scene.add.rectangle(12, 0, 12, 18, 0x00e5ff, 1);
-    // Gun (Dark Gray Metallic Barrel)
-    const gun = scene.add.rectangle(0, 8, 32, 10, 0x1a1a1a).setOrigin(0, 0.5);
+    // Gun (Dark Gray Metallic Barrel) - Adjusted for better orientation
+    const gun = scene.add.rectangle(20, 0, 32, 10, 0x1a1a1a).setOrigin(0, 0.5);
     player.add([body, visor, gun]);
     scene.physics.add.existing(player);
     player.body.setCircle(20, -20, -20).setCollideWorldBounds(true);
@@ -250,7 +246,7 @@ function createZombie(scene) {
     else { x = 900; y = Phaser.Math.Between(0, 600); }
 
     // Using the new detailed texture
-    const zombie = scene.add.sprite(x, y, 'zombie_tex');
+    const zombie = scene.add.sprite(x, y, 'zombie');
 
     // Add random variety (scale and tint)
     zombie.setScale(Phaser.Math.FloatBetween(0.9, 1.2));
@@ -400,7 +396,7 @@ function spawnResources(scene) {
             y = Phaser.Math.Between(50, 550);
         } while (Phaser.Math.Distance.Between(x, y, 400, 300) < 150);
 
-        const tree = resources.create(x, y, 'tree_tex');
+        const tree = resources.create(x, y, 'tree');
         tree.type = 'wood';
         tree.hp = 100;
     }
@@ -412,7 +408,7 @@ function spawnResources(scene) {
             y = Phaser.Math.Between(50, 550);
         } while (Phaser.Math.Distance.Between(x, y, 400, 300) < 150);
 
-        const rock = resources.create(x, y, 'rock_tex');
+        const rock = resources.create(x, y, 'stone');
         rock.type = 'stone';
         rock.hp = 150;
     }
