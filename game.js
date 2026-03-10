@@ -387,22 +387,28 @@ function updateTurret(scene, t, time) {
     });
 
     if (closest) {
-        // Predictive Aiming: Predict position in 0.25 seconds
-        const predictX = closest.x + (closest.body.velocity.x * 0.25);
-        const predictY = closest.y + (closest.body.velocity.y * 0.25);
+        // Correct distance-based prediction
+        const bulletSpeed = 1200;
+        const dist = Phaser.Math.Distance.Between(t.x, t.y, closest.x, closest.y);
+        const timeToHit = dist / bulletSpeed;
+        
+        // Predict position based on current velocity and time to hit
+        const predictX = closest.x + (closest.body.velocity.x * timeToHit);
+        const predictY = closest.y + (closest.body.velocity.y * timeToHit);
         const targetAngle = Phaser.Math.Angle.Between(t.x, t.y, predictX, predictY);
 
-        // Smooth rotation
-        t.gun.rotation = Phaser.Math.Angle.RotateTo(t.gun.rotation, targetAngle, 0.1);
+        // Slightly faster rotation for better tracking
+        t.gun.rotation = Phaser.Math.Angle.RotateTo(t.gun.rotation, targetAngle, 0.15);
 
-        // Only fire if pointing close to the target
-        if (Math.abs(Phaser.Math.Angle.Wrap(t.gun.rotation - targetAngle)) < 0.2) {
+        // Precision firing: fire only when aimed precisely at the predicted position
+        const angleDiff = Math.abs(Phaser.Math.Angle.Wrap(t.gun.rotation - targetAngle));
+        if (angleDiff < 0.15) {
             const b = turretBullets.get(t.x, t.y);
             if (b) {
                 b.setActive(true).setVisible(true).setPosition(t.x, t.y);
                 scene.physics.add.existing(b);
-                // Faster bullet for prediction accuracy
-                b.body.setVelocity(Math.cos(t.gun.rotation) * 1200, Math.sin(t.gun.rotation) * 1200);
+                b.body.setVelocity(Math.cos(t.gun.rotation) * bulletSpeed, Math.sin(t.gun.rotation) * bulletSpeed);
+                b.body.setCircle(6); // More forgiving hitbox for accuracy
                 scene.time.addEvent({ delay: 1500, callback: () => { if (b.active) b.destroy(); } });
                 t.lastFired = time;
                 scene.cameras.main.shake(50, 0.001); // Subtle feedback
