@@ -41,7 +41,7 @@ const gameState = {
     spawnDelay: 2000,
     turretsCount: 0,
     maxTurrets: 4,
-    turretFireRate: 800,
+    turretFireRate: 2400,
     turretRange: 350,
     // Resources
     wood: 0,
@@ -387,31 +387,25 @@ function updateTurret(scene, t, time) {
     });
 
     if (closest) {
-        // Correct distance-based prediction
-        const bulletSpeed = 1200;
-        const dist = Phaser.Math.Distance.Between(t.x, t.y, closest.x, closest.y);
-        const timeToHit = dist / bulletSpeed;
-        
-        // Predict position based on current velocity and time to hit
-        const predictX = closest.x + (closest.body.velocity.x * timeToHit);
-        const predictY = closest.y + (closest.body.velocity.y * timeToHit);
-        const targetAngle = Phaser.Math.Angle.Between(t.x, t.y, predictX, predictY);
+        // High speed bullets for instant hit (no prediction needed)
+        const bulletSpeed = 4000;
+        const targetAngle = Phaser.Math.Angle.Between(t.x, t.y, closest.x, closest.y);
 
-        // Slightly faster rotation for better tracking
-        t.gun.rotation = Phaser.Math.Angle.RotateTo(t.gun.rotation, targetAngle, 0.15);
+        // Even faster rotation for "perfect" tracking
+        t.gun.rotation = Phaser.Math.Angle.RotateTo(t.gun.rotation, targetAngle, 0.3);
 
-        // Precision firing: fire only when aimed precisely at the predicted position
+        // Precision firing
         const angleDiff = Math.abs(Phaser.Math.Angle.Wrap(t.gun.rotation - targetAngle));
-        if (angleDiff < 0.15) {
+        if (angleDiff < 0.2) {
             const b = turretBullets.get(t.x, t.y);
             if (b) {
                 b.setActive(true).setVisible(true).setPosition(t.x, t.y);
                 scene.physics.add.existing(b);
                 b.body.setVelocity(Math.cos(t.gun.rotation) * bulletSpeed, Math.sin(t.gun.rotation) * bulletSpeed);
-                b.body.setCircle(6); // More forgiving hitbox for accuracy
-                scene.time.addEvent({ delay: 1500, callback: () => { if (b.active) b.destroy(); } });
+                b.body.setCircle(6); 
+                scene.time.addEvent({ delay: 1000, callback: () => { if (b.active) b.destroy(); } });
                 t.lastFired = time;
-                scene.cameras.main.shake(50, 0.001); // Subtle feedback
+                scene.cameras.main.shake(50, 0.001);
             }
         }
     }
@@ -652,7 +646,8 @@ function createShopMenu(scene) {
         { name: 'Up Dano Player', key: 'bulletDamage', cost: 200, inc: 25, type: 'up' },
         { name: 'Reparar Base (+50)', key: 'repair', cost: 300, type: 'buy' },
         { name: 'Comprar Torreta', key: 'turret', cost: 1500, type: 'buy' },
-        { name: 'Up Dano Torreta', key: 'turretDmg', cost: 400, inc: 30, type: 'up' }
+        { name: 'Up Dano Torreta', key: 'turretDmg', cost: 400, inc: 30, type: 'up' },
+        { name: 'Cadência Torreta', key: 'turretFireRate', cost: 500, dec: 100, type: 'up' }
     ];
 
     items.forEach((it, i) => {
@@ -707,6 +702,12 @@ function createShopMenu(scene) {
                     gameState.gold -= it.cost;
                     gameState.turretBulletDamage += it.inc;
                     success = true;
+                } else if (it.key === 'turretFireRate') {
+                    if (gameState.turretFireRate > 150) { // Limit to 150ms
+                        gameState.gold -= it.cost;
+                        gameState.turretFireRate -= it.dec;
+                        success = true;
+                    }
                 }
 
                 if (success) {
