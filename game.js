@@ -642,12 +642,12 @@ function createShopMenu(scene) {
     shopItemsContainer = scene.add.container(0, 0);
 
     const items = [
-        { name: 'Up Cadência', key: 'fireRate', cost: 150, dec: 20, type: 'up' },
-        { name: 'Up Dano Player', key: 'bulletDamage', cost: 200, inc: 25, type: 'up' },
         { name: 'Reparar Base (+50)', key: 'repair', cost: 300, type: 'buy' },
-        { name: 'Comprar Torreta', key: 'turret', cost: 1500, type: 'buy' },
-        { name: 'Up Dano Torreta', key: 'turretDmg', cost: 400, inc: 30, type: 'up' },
-        { name: 'Cadência Torreta', key: 'turretFireRate', cost: 500, dec: 100, type: 'up' }
+        { name: 'Cadência Player', key: 'fireRate', cost: 150, dec: 25, type: 'up' },
+        { name: 'Dano Player', key: 'bulletDamage', cost: 200, inc: 25, type: 'up' },
+        { name: 'COMPRAR TORRETA', key: 'turret', cost: 1500, type: 'buy' },
+        { name: 'Cadência Torreta', key: 'turretFireRate', cost: 600, dec: 300, type: 'up' },
+        { name: 'Dano Torreta', key: 'turretDmg', cost: 400, inc: 40, type: 'up' }
     ];
 
     items.forEach((it, i) => {
